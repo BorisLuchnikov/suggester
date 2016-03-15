@@ -1,5 +1,6 @@
 var iSuggestor = {
-    /* http://api.sypexgeo.net/cJlaH/json | ypUOZ | naeOP | SbrSY | VzjL7 | uRiWB | cJlaH */
+    
+    /* http://api.sypexgeo.net/cJlaH/json */
     "serverUrl" : "http://46.101.137.208:8080", /* 10.54.8.61 | team03.hackathon.2gis.ru */
     "geolocationData" : null, /* Сюда мы запишем данные геолокации */
     "city" : null, /* Город. Первый раз определяем исходя их IP адреса */
