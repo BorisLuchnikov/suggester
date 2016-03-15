@@ -1,0 +1,49 @@
+<!DOCTYPE html>	
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>touch me</title>
+		<link rel="stylesheet" href="http://46.101.137.208/suggester/css/iSuggestor.css">
+		<script type="text/javascript" src="http://46.101.137.208/suggester/js/iSuggestor.js"></script>
+		<script src="http://maps.api.2gis.ru/2.0/loader.js?pkg=full"></script>
+	</head>
+	
+	<body>
+		<input type="text" id="findAddress" placeholder="Город, улица, дом" />
+
+		<table id="parsedAddress">
+			<tr><td align="right">Наименование </td><td id="nameField"></td></tr>
+			<tr><td align="right">Полный адрес </td><td id="addressField"></td></tr>
+			<tr><td align="right">Индекс </td><td id="postcodeField"></td></tr>
+			<tr><td align="right">Город </td><td id="cityField"></td></tr>
+			<tr><td align="right">Район города </td><td id="districtField"></td></tr>
+			<tr><td align="right">Улица </td><td id="streetField"></td></tr>
+			<tr><td align="right">Номер дома </td><td id="numberField"></td></tr>
+			<tr><td align="right">Количество этажей </td><td id="floorsField"></td></tr>
+			<tr><td align="right">Геокоординаты </td><td id="geometryField"></td></tr>
+		</table>
+		
+		<div id="mapDiv"></div>
+		
+		
+		<script type="text/javascript">
+			iSuggestor.init({
+				"searchBox" : "findAddress",	/* id поле поиска адреса */
+				
+				// "mapPlaceholder" : "mapDiv",	/* Если хотим использовать карту, указываем id дива, в который хотим ее поместить */
+				
+				"parsedAddress" : { /* айдишники филдов для города, адреса, наименования */
+					"name" : "nameField",			// name - Наименование
+					"address" : "addressField",		// address - Полный адрес (собираем по кускам)
+					"postcode" : "postcodeField",	// postcode - Индекс
+					"city" : "cityField",			// city - Город
+					"district" : "districtField",	// district - Район города
+					"street" : "streetField",		// street - Улица
+					"number" : "numberField",		// number - Номер дома
+					"floors" : "floorsField",		// Количество этажей
+					"geometry" : "geometryField"	// geometry - Геокоординаты
+				}
+			});
+		</script>
+	</body>
+</html>
