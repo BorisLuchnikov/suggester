@@ -1,7 +1,7 @@
-var iSuggestor = {
+var iSuggester = {
     
     /* http://api.sypexgeo.net/cJlaH/json - api для получения города по ip адресу */
-    "serverUrl" : "http://46.101.137.208:8080", /* 10.54.8.61 | team03.hackathon.2gis.ru */
+    "serverUrl" : "", /* Сервер, возвращающий саггесты */
     "geolocationData" : null, /* Сюда мы запишем данные геолокации */
     "city" : null, /* Город. Первый раз определяем исходя их IP адреса */
     "searchBox" : null, /* объект с полем для поиска адреса */
@@ -27,25 +27,25 @@ var iSuggestor = {
         }
 
         if (parsedAddress != null && parsedAddress != undefined) { /* инициализируем разобранный адрес */
-            iSuggestor.parsedAddress = parsedAddress;
+            iSuggester.parsedAddress = parsedAddress;
         }
 
         if (mapPlaceholder != null && mapPlaceholder != undefined) { /* инициализируем карту */
-            iSuggestor.mapPlaceholder = mapPlaceholder;
+            iSuggester.mapPlaceholder = mapPlaceholder;
         }
 
         this.getCityWithIp(); /* получаем город по IP адресу */
         this.getGeolocationData(); /* получаем геолокацию */
         this.buildSuggestionsPlaceholder(); /* собираем плейсхолдер для саггестов */
         window.addEventListener("click", function() { /* скрываем список саггестов при клике в куда-нибудь */
-            iSuggestor.suggestionsBox.style.display = "none";
+            iSuggester.suggestionsBox.style.display = "none";
         });
         this.searchBox.addEventListener("click", function(e) { /* рендерим имеющиеся саггесты */
-            iSuggestor.renderSuggestions();
+            iSuggester.renderSuggestions();
             e.stopPropagation();
         });
-        this.searchBox.setAttribute("onkeydown", "iSuggestor.selectSuggestion(event);"); /* затычка для FF (выбираем саггесты стрелками) */
-        this.searchBox.setAttribute("onkeyup", "iSuggestor.addressType(event);"); /* ручной ввод адреса */
+        this.searchBox.setAttribute("onkeydown", "iSuggester.selectSuggestion(event);"); /* затычка для FF (выбираем саггесты стрелками) */
+        this.searchBox.setAttribute("onkeyup", "iSuggester.addressType(event);"); /* ручной ввод адреса */
 
     },
 
@@ -61,15 +61,15 @@ var iSuggestor = {
 
         var coordinates = position.coords;
 
-        iSuggestor.geolocationData = {};
-        iSuggestor.geolocationData.point = coordinates.longitude + "," + coordinates.latitude /* долгота + широта */;
-        iSuggestor.geolocationData.radius = coordinates.accuracy; /* погрешность */
+        iSuggester.geolocationData = {};
+        iSuggester.geolocationData.point = coordinates.longitude + "," + coordinates.latitude /* долгота + широта */;
+        iSuggester.geolocationData.radius = coordinates.accuracy; /* погрешность */
 
-        if (iSuggestor.mapPlaceholder != null) {
-            iSuggestor.initMap(iSuggestor.geolocationData.point);
+        if (iSuggester.mapPlaceholder != null) {
+            iSuggester.initMap(iSuggester.geolocationData.point);
         }
 
-        iSuggestor.getSuggestions("getAddress"); /* получаем саггесты */
+        iSuggester.getSuggestions("getAddress"); /* получаем саггесты */
 
     },
 
@@ -82,10 +82,10 @@ var iSuggestor = {
          */
 
         if (!params) {
-            params = iSuggestor.geolocationData;
+            params = iSuggester.geolocationData;
         }
 
-        var url = iSuggestor.serverUrl + "/suggester/" + requestType + "?";
+        var url = iSuggester.serverUrl + "/suggester/" + requestType + "?";
 
         for (param in params) {
             url += param + "=" + params[param] + "&"; /* TODO для последнего элемента не добавлять символ & */
@@ -98,13 +98,13 @@ var iSuggestor = {
         ajax.onload = function() {
             var suggestions = ajax.responseText;
             if (suggestions.length == 0) { /* чекаем, чтобы ответ был не пустой */
-                iSuggestor.suggestionsBox.innerHTML = ""; /* сбрасываем список саггестов при сценарии когда список пустой */
+                iSuggester.suggestionsBox.innerHTML = ""; /* сбрасываем список саггестов при сценарии когда список пустой */
                 return false;
             }
             if (typeof(suggestions) == "string") {
                 suggestions = JSON.parse(suggestions);
             }
-            iSuggestor.suggestions = suggestions;
+            iSuggester.suggestions = suggestions;
             if (callback != null && callback != undefined) {
                 callback(); /* лапшекод */
             }
@@ -146,19 +146,19 @@ var iSuggestor = {
 
     "renderSuggestions" : function() { /* отрисовываем саггесты */
 
-        if (iSuggestor.searchBox.value == "" && !iSuggestor.firstClick) {
-            iSuggestor.searchBox.value = iSuggestor.city + " "; /* выводим название города в инпут */
-            iSuggestor.firstClick = true;
+        if (iSuggester.searchBox.value == "" && !iSuggester.firstClick) {
+            iSuggester.searchBox.value = iSuggester.city + " "; /* выводим название города в инпут */
+            iSuggester.firstClick = true;
         }
 
-        if (iSuggestor.suggestions == null ||  iSuggestor.suggestionsBox == null) { /* мы не будем выводить див, если нет доступных саггестов */
+        if (iSuggester.suggestions == null ||  iSuggester.suggestionsBox == null) { /* мы не будем выводить див, если нет доступных саггестов */
             return false;
         }
 
-        iSuggestor.suggestionsBox.innerHTML = "<div style='background-color: #FAFAFA; color: #808080; padding: 5px 25px; font-size: 12px;'>Выберите вариант или продолжите ввод</div>"; /* сбрасываем список саггестов */
-        iSuggestor.suggestionsBox.style.display = ""; /* делаем список саггестов видимым */
+        iSuggester.suggestionsBox.innerHTML = "<div style='background-color: #FAFAFA; color: #808080; padding: 5px 25px; font-size: 12px;'>Выберите вариант или продолжите ввод</div>"; /* сбрасываем список саггестов */
+        iSuggester.suggestionsBox.style.display = ""; /* делаем список саггестов видимым */
 
-        iSuggestor.suggestions.forEach(function(suggest) {
+        iSuggester.suggestions.forEach(function(suggest) {
             var suggestion = document.createElement("div");
             suggestion.id = suggest.id;
             suggestion.innerHTML = (!suggest.city ? "" : suggest.city + ", ") + (!suggest.address_name ? suggest.name : suggest.address_name + (suggest.address_name == suggest.name ? "" : " (" + suggest.name + ")")); /* Текстовка саггеста */
@@ -171,60 +171,60 @@ var iSuggestor = {
                 suggestion.style.backgroundColor = "#FAFAFA";
             });
             suggestion.addEventListener("click", function() {
-                iSuggestor.setSuggestion(suggestion);
-                iSuggestor.searchBox.focus(); /* фокусим поле ввода адреса после выбора саггеста */
+                iSuggester.setSuggestion(suggestion);
+                iSuggester.searchBox.focus(); /* фокусим поле ввода адреса после выбора саггеста */
             });
 
-            iSuggestor.suggestionsBox.appendChild(suggestion);
+            iSuggester.suggestionsBox.appendChild(suggestion);
         });
     },
 
     "setSuggestion" : function(suggestion) { /* когда выбираем какой-либо саггест */
-        iSuggestor.searchBox.value = suggestion.textContent + " ";
-        iSuggestor.suggestionsBox.style.display = "none";
-        iSuggestor.activeSuggestion = null; /* затычка для выбора стрелочками */
+        iSuggester.searchBox.value = suggestion.textContent + " ";
+        iSuggester.suggestionsBox.style.display = "none";
+        iSuggester.activeSuggestion = null; /* затычка для выбора стрелочками */
 
-        if (iSuggestor.parsedAddress != null) {
-            iSuggestor.injectAddress(suggestion.id);
+        if (iSuggester.parsedAddress != null) {
+            iSuggester.injectAddress(suggestion.id);
         }
     },
 
     "selectSuggestion" : function(e) { /* двигаем стрелочки */
 
-        if (iSuggestor.suggestionsBox.offsetHeight == 0) { /* не даем выбирать из скрытого списка саггестов */
+        if (iSuggester.suggestionsBox.offsetHeight == 0) { /* не даем выбирать из скрытого списка саггестов */
             return false;
         }
 
         e = e || window.event;
 
-        if (iSuggestor.activeSuggestion != null) {
-            iSuggestor.activeSuggestion.style.backgroundColor = "#FFFFFF"; /* сбрасываем цвет */
+        if (iSuggester.activeSuggestion != null) {
+            iSuggester.activeSuggestion.style.backgroundColor = "#FFFFFF"; /* сбрасываем цвет */
         }
 
         if (e.keyCode == "38") { /* up arrow */
-            if (iSuggestor.activeSuggestion == null) { /* если не выбрано саггестов */
-                iSuggestor.activeSuggestion = iSuggestor.suggestionsBox.lastChild; /* берем последний элемент в списке */
+            if (iSuggester.activeSuggestion == null) { /* если не выбрано саггестов */
+                iSuggester.activeSuggestion = iSuggester.suggestionsBox.lastChild; /* берем последний элемент в списке */
             } else {
-                iSuggestor.activeSuggestion = iSuggestor.activeSuggestion.previousSibling; /* предыдущий элемент в списке */
+                iSuggester.activeSuggestion = iSuggester.activeSuggestion.previousSibling; /* предыдущий элемент в списке */
             }
         }
         else if (e.keyCode == "40") { /* down arrow */
-            if (iSuggestor.activeSuggestion == null) { /* если не выбрано саггестов */
-                iSuggestor.activeSuggestion = iSuggestor.suggestionsBox.firstChild.nextSibling; /* берем первый элемент в списке */
+            if (iSuggester.activeSuggestion == null) { /* если не выбрано саггестов */
+                iSuggester.activeSuggestion = iSuggester.suggestionsBox.firstChild.nextSibling; /* берем первый элемент в списке */
             } else {
-                iSuggestor.activeSuggestion = iSuggestor.activeSuggestion.nextSibling; /* следующий элемент в списке */
+                iSuggester.activeSuggestion = iSuggester.activeSuggestion.nextSibling; /* следующий элемент в списке */
             }
         }
         else if (e.keyCode == "13") {
-            iSuggestor.setSuggestion(iSuggestor.activeSuggestion);
+            iSuggester.setSuggestion(iSuggester.activeSuggestion);
         }
         else {
             return false; /* его слегка ебашит когда тыкаешь <- или -> если не заретурнить */
         }
 
-        if (iSuggestor.activeSuggestion.id != "") { /* реально задрали стрелки.. :( кастыль по избежание ховер первой строки */
-            iSuggestor.activeSuggestion.style.backgroundColor = "#EDEDED";
-            iSuggestor.searchBox.value = iSuggestor.activeSuggestion.textContent + " ";
+        if (iSuggester.activeSuggestion.id != "") { /* реально задрали стрелки.. :( кастыль по избежание ховер первой строки */
+            iSuggester.activeSuggestion.style.backgroundColor = "#EDEDED";
+            iSuggester.searchBox.value = iSuggester.activeSuggestion.textContent + " ";
         }
     },
 
@@ -237,9 +237,9 @@ var iSuggestor = {
         if (typeof(city) == "string") {
             city = JSON.parse(city);
         }
-        iSuggestor.city = city.city.name_ru;
-        if (iSuggestor.city == null || iSuggestor.city == undefined) { /* todo а чё делать, если не удалось получить город по ip? */
-            iSuggestor.city = "Новосибирск";
+        iSuggester.city = city.city.name_ru;
+        if (iSuggester.city == null || iSuggester.city == undefined) { /* todo а чё делать, если не удалось получить город по ip? */
+            iSuggester.city = "Новосибирск";
         }
     },
 
@@ -254,27 +254,27 @@ var iSuggestor = {
         }
 
         var query = {
-            "q" : iSuggestor.searchBox.value,
+            "q" : iSuggester.searchBox.value,
         };
 
         if (query.q.length >= 2) { /* ищем от двух символов и больше */
 
-            if (iSuggestor.activeSearch != null) {
-                clearTimeout(iSuggestor.activeSearch);
+            if (iSuggester.activeSearch != null) {
+                clearTimeout(iSuggester.activeSearch);
             }
 
-            iSuggestor.activeSearch = setTimeout(function() { /* немного ждем прежде чем кинуть запрос */
-                iSuggestor.getSuggestions("getAddressByQuery", query, iSuggestor.renderSuggestions);
+            iSuggester.activeSearch = setTimeout(function() { /* немного ждем прежде чем кинуть запрос */
+                iSuggester.getSuggestions("getAddressByQuery", query, iSuggester.renderSuggestions);
             }, 100);
         } else { /* если в поел для поиска < 2 символов, то мы скрываем список саггестов и чистим их */
-            iSuggestor.suggestions = null;
-            iSuggestor.suggestionsBox.style.display = "none";
+            iSuggester.suggestions = null;
+            iSuggester.suggestionsBox.style.display = "none";
         }
     },
 
     "initMap" : function(geolocation) {
         DG.then(function () {
-            map = DG.map(iSuggestor.mapPlaceholder, {
+            map = DG.map(iSuggester.mapPlaceholder, {
                 center: [54.9800639, 82.89749619999999],
                 zoom: 17
             });
@@ -294,7 +294,7 @@ var iSuggestor = {
         }
 
         var ajax = new XMLHttpRequest();
-        ajax.open("GET", iSuggestor.serverUrl + "/suggester/getAddressById?id=" + objectId);
+        ajax.open("GET", iSuggester.serverUrl + "/suggester/getAddressById?id=" + objectId);
         ajax.send();
 
         ajax.onload = function() {
@@ -306,7 +306,7 @@ var iSuggestor = {
 
             objectData = objectData.result.items[0];
 
-            var fields = iSuggestor.parsedAddress;
+            var fields = iSuggester.parsedAddress;
             var admDiv = objectData.adm_div;
             var city, district;
 
