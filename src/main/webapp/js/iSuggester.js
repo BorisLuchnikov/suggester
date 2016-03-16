@@ -76,9 +76,9 @@ var iSuggester = {
     "getSuggestions" : function(requestType, params, callback) { /* получаем саггесты */
 
         /*
-         requestType == getAddress - получение данных по геолокации ( /suggester2gis/getAddress?point=82.8975332,54.979858&radius=30 )
-         requestType == getAddressById - получение данных по id ( /suggester2gis/getAddressById?id=141373143572328 )
-         requestType == getAddressByQuery - получение данных по произвольной строке ( /suggester2gis/getAddressByQuery?q=Novosibirsk)
+         requestType == getAddress - получение данных по геолокации ( /suggester/getAddress?point=82.8975332,54.979858&radius=30 )
+         requestType == getAddressById - получение данных по id ( /suggester/getAddressById?id=141373143572328 )
+         requestType == getAddressByQuery - получение данных по произвольной строке ( /suggester/getAddressByQuery?q=Novosibirsk)
          */
 
         if (!params) {
