@@ -1,31 +1,23 @@
 #findAddress {
-	border-radius: 4px;
 	padding: 10px;
-	font-weight: bold;
 	outline: none;
 	width: 600px;
-	border: 1px solid #D1D1D1;
-	
+
 	left: 370px;
 	top: 130px;
 	position: absolute;
 }
 
-.suggestions {
-	width: 600px;
+input[type="text"] {
+	font-weight: bold;
+	border-radius: 4px;
+	border: 1px solid #D1D1D1;
 }
 
-.suggestion {
-	background-color: green;
-	border-radius: 0px;
-	cursor: pointer;
-	padding: 10px;
+.pa {
+	width: 300px;
+	padding: 5px 10px;
 }
-
-.suggestion:hover {
-	background-color: blue;
-}
-
 
 #parsedAddress {
 	border-radius: 4px;

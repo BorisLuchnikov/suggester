@@ -4,7 +4,7 @@
 		<meta charset="utf-8">
 		<title>iSuggester Promo Page</title>
 		<link rel="stylesheet" href="/suggester/css/iSuggester.css">
-		<script type="text/javascript" src="/suggester/js/iSuggester.js"></script>
+		<script type="text/javascript" src="/suggester/js/iSuggester.min.js"></script>
 		<!-- <script src="http://maps.api.2gis.ru/2.0/loader.js?pkg=full"></script> -->
 	</head>
 	
@@ -12,18 +12,18 @@
 		<input type="text" id="findAddress" placeholder="Город, улица, дом" />
 
 		<table id="parsedAddress">
-			<tr><td align="right">Наименование </td><td id="nameField"></td></tr>
-			<tr><td align="right">Полный адрес </td><td id="addressField"></td></tr>
-			<tr><td align="right">Индекс </td><td id="postcodeField"></td></tr>
-			<tr><td align="right">Город </td><td id="cityField"></td></tr>
-			<tr><td align="right">Район города </td><td id="districtField"></td></tr>
-			<tr><td align="right">Улица </td><td id="streetField"></td></tr>
-			<tr><td align="right">Номер дома </td><td id="numberField"></td></tr>
-			<tr><td align="right">Количество этажей </td><td id="floorsField"></td></tr>
-			<tr><td align="right">Геокоординаты </td><td id="geometryField"></td></tr>
+			<tr><td align="right">Наименование </td><td><input type="text" id="nameField" class="pa" /></td></tr>
+			<tr><td align="right">Полный адрес </td><td><input type="text" id="addressField" class="pa" /></td></tr>
+			<tr><td align="right">Индекс </td><td><input type="text" id="postcodeField" class="pa" /></td></tr>
+			<tr><td align="right">Город </td><td><input type="text" id="cityField" class="pa" /></td></tr>
+			<tr><td align="right">Район города </td><td><input type="text" id="districtField" class="pa" /></td></tr>
+			<tr><td align="right">Улица </td><td><input type="text" id="streetField" class="pa" /></td></tr>
+			<tr><td align="right">Номер дома </td><td><input type="text" id="numberField" class="pa" /></td></tr>
+			<tr><td align="right">Количество этажей </td><td><input type="text" id="floorsField" class="pa" /></td></tr>
+			<!-- <tr><td align="right">Геокоординаты </td><td id="geometryField"></td></tr> -->
 		</table>
-		
-		<div id="mapDiv"></div>
+
+		<!-- <div id="mapDiv"></div> -->
 
 		<script type="text/javascript">
 			iSuggester.init({

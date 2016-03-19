@@ -1,356 +1,331 @@
 var iSuggester = {
-    
-    /* http://api.sypexgeo.net/cJlaH/json - api для получения города по ip адресу */
-    "serverUrl" : "", /* Сервер, возвращающий саггесты */
-    "geolocationData" : null, /* Сюда мы запишем данные геолокации */
-    "city" : null, /* Город. Первый раз определяем исходя их IP адреса */
-    "searchBox" : null, /* объект с полем для поиска адреса */
-    "suggestionsBox" : null, /* запоминаем див для саггестов */
-    "suggestions" : null, /* список саггестов */
-    "activeSuggestion" : null, /* для визуального выделения выбранных саггестов (для стрелок) */
-    "activeSearch" : null, /* флаг который сокращает спам к апишке (если человек печатет быстро, мы не сразу кидаем геты) */
-    "parsedAddress" : null, /* массив с айдишниками полей в которые нужно разобрать адрес */
-    "mapPlaceholder" : null, /* пхолдер для карты */
-    "firstClick" : false,
 
-    "init" : function(params) { /* Функция инициализирующая саггестор */
+    serverUrl : "/suggester", /* Сервер, возвращающий саггесты */
+    searchBox : null, /* html объект строки поиска */
+    suggestions : [], /* Список саггестов */
+    activeSuggestion : null, /* Выбранный саггест */
+    activeSearch : null, /* Эта вещь поможет нам абортить лишние запросы к серверу */
+    userGeolocationData : null, /* Геолокационные данные пользователя */
+    userCity : null, /* Город пользователя */
+    addressFields : null, /* Список айдишников полей, в которые нужно разобрать адрес*/
+    suggestionsBox : {  /* div для саггестов */
+        placeholder : null, /* Главный div */
+        hint : null, /* div с хинтом */
+        selectable : null /* выбираемые div'ы с саггестами */
+    },
 
-        var searchBox = params.searchBox;
-        var parsedAddress = params.parsedAddress;
-        var mapPlaceholder = params.mapPlaceholder;
+    init : function(params) { /* Функция инициализирующая саггестор */
 
-        if (searchBox == null || searchBox == undefined || searchBox == "") { /* проверяем, указали ли поле поиска */
-            alert ("Не указан ID поля для ввода адреса");
+        this.searchBox = document.getElementById(params.searchBox); /* Запоминаем строку для ввода адреса */
+        this.addressFields = params.addressFields; /* Запоминаем id филдов для разобранного адреса */
+
+        if (this.searchBox == null || this.searchBox == undefined) { /* Проверяем, что у нас правильно инициализировано поле поиска */
             return false;
-        } else {
-            this.searchBox = document.getElementById(searchBox);
         }
 
-        if (parsedAddress != null && parsedAddress != undefined) { /* инициализируем разобранный адрес */
-            iSuggester.parsedAddress = parsedAddress;
-        }
-
-        if (mapPlaceholder != null && mapPlaceholder != undefined) { /* инициализируем карту */
-            iSuggester.mapPlaceholder = mapPlaceholder;
-        }
-
-        this.getCityWithIp(); /* получаем город по IP адресу */
-        this.getGeolocationData(); /* получаем геолокацию */
-        this.buildSuggestionsPlaceholder(); /* собираем плейсхолдер для саггестов */
-        window.addEventListener("click", function() { /* скрываем список саггестов при клике в куда-нибудь */
-            iSuggester.suggestionsBox.style.display = "none";
-        });
-        this.searchBox.addEventListener("click", function(e) { /* рендерим имеющиеся саггесты */
-            iSuggester.renderSuggestions();
-            e.stopPropagation();
-        });
-        this.searchBox.setAttribute("onkeydown", "iSuggester.selectSuggestion(event);"); /* затычка для FF (выбираем саггесты стрелками) */
-        this.searchBox.setAttribute("onkeyup", "iSuggester.addressType(event);"); /* ручной ввод адреса */
-
+        this.buildSuggestionsPlaceholder();
+        this.getUserCityByIP(); /* получаем город пользователя по IP адресу */
+        this.getUserGeolocationData(); /* получаем геолокацию пользователя */
+        this.searchBox.onclick = function(e) { iSuggester.handleClickOnSearchBox(e); } /* Обработка кливов мыши в поле поиска */
+        this.searchBox.onkeyup = function (e) { iSuggester.handleKeyPress(e); }  /* Обрабатываем нажания кнопок, когда строка поиска в фокусе */
+        window.onclick = function () { iSuggester.hideSuggestionsPlaceholder(); } /* Скрываем плейсхолдер с саггестами при клике куда-либо */
     },
 
-    "getGeolocationData" : function() { /* получаем геолокацию */
-        if (navigator.geolocation) { /* проверяем, умеет ли браузер брать геолоку */
-            navigator.geolocation.getCurrentPosition(this.setGeolocationData, this.showGeolocationDataErrors);
-        } else { /* не умеет брать геолоку :( */
-            alert ("Ваш браузер не поддерживает передачу геопозиции :( ");
+    getUserGeolocationData : function() { /* Функция получения геопозиции пользователя */
+        if (navigator.geolocation) { /* Проверяем, умеет ли браузер получать геопозицию. Не умеет IE 8 и ниже. */
+            window.navigator.geolocation.getCurrentPosition(this.setUserGeolocationData);
+        } else { /* Не умеет получать геопозицию :( */
+            console.log("Браузер не поддерживает передачу геопозиции :(");
         }
     },
 
-    "setGeolocationData" : function(position) {
-
+    setUserGeolocationData : function(position) { /* Функция сохранения геопозиции пользователя */
         var coordinates = position.coords;
-
-        iSuggester.geolocationData = {};
-        iSuggester.geolocationData.point = coordinates.longitude + "," + coordinates.latitude /* долгота + широта */;
-        iSuggester.geolocationData.radius = coordinates.accuracy; /* погрешность */
-
-        if (iSuggester.mapPlaceholder != null) {
-            iSuggester.initMap(iSuggester.geolocationData.point);
-        }
-
-        iSuggester.getSuggestions("getAddress"); /* получаем саггесты */
-
+        var userGeolocationData = {};
+        userGeolocationData.latitude = coordinates.latitude; /* Широта */
+        userGeolocationData.longitude = coordinates.longitude; /* Долгота */
+        userGeolocationData.accuracy = (coordinates.accuracy > 250 ? 250 : coordinates.accuracy); /* Точность */
+        iSuggester.userGeolocationData = userGeolocationData;
+        iSuggester.getSuggestions("/getAddress?point=" + userGeolocationData.longitude + "," + userGeolocationData.latitude + "&radius=" + userGeolocationData.accuracy);
     },
 
-    "getSuggestions" : function(requestType, params, callback) { /* получаем саггесты */
+    getUserCityByIP : function() { /* Функция получения города пользователя по его IP адресу */
+        this.sendAjax("http://api.sypexgeo.net/ypUOZ/json", this.setUserCity); /* TODO Решить откуда берем город */
+    },
 
-        /*
-         requestType == getAddress - получение данных по геолокации ( /suggester/getAddress?point=82.8975332,54.979858&radius=30 )
-         requestType == getAddressById - получение данных по id ( /suggester/getAddressById?id=141373143572328 )
-         requestType == getAddressByQuery - получение данных по произвольной строке ( /suggester/getAddressByQuery?q=Novosibirsk)
-         */
+    setUserCity : function(ipData) { /* Функция сохранения города пользователя (полученного по IP) */
+        iSuggester.userCity = ipData.city.name_ru;
+    },
 
-        if (!params) {
-            params = iSuggester.geolocationData;
+    buildSuggestionsPlaceholder : function() { /* Создаем плейсхолдер для саггестов */
+
+        var placeholderAttrs = { /* Атрибуты основного дива */
+            id : "placeholder" + new Date().getTime(),
+            style : "width: " + this.searchBox.offsetWidth + "px; font-size: 14px; font-family: Arial; position: absolute; display: none; z-index: 999;"
+        }
+        var hintAttrs = { /* Атрибуты для div'a с хинтами */
+            id : "hint" + new Date().getTime(),
+            style : "background-color: #FAFAFA; color: #808080; padding: 5px 25px; font-size: 12px;"
+        }
+        var selectableAttrs = { /* Атрибуты для div'a с саггестами */
+            id : "selectable" + new Date().getTime()
+        }
+        var placeholder = this.createDiv(placeholderAttrs); /* Основной див */
+        var hint = this.createDiv(hintAttrs); /* div с хинтом */
+        var selectable = this.createDiv(selectableAttrs); /* выбираемые div'ы с саггестами */
+
+        placeholder.appendChild(hint);
+        placeholder.appendChild(selectable);
+
+        this.searchBox.parentNode.insertBefore(placeholder, this.searchBox.nextSibling);
+        this.suggestionsBox.placeholder = placeholder;
+        this.suggestionsBox.hint = hint;
+        this.suggestionsBox.selectable = selectable;
+    },
+
+    stylingSuggestionsPlaceholder : function() { /* Добавляем стили плейсхолдеру для саггестов. Необходимо при изменении его положения */
+        var searchBoxPosition = this.searchBox.getBoundingClientRect(); /* Положения поля поиска */
+        var placeholderStyle = this.suggestionsBox.placeholder.style;
+        placeholderStyle.left = searchBoxPosition.left + "px";
+        placeholderStyle.top = searchBoxPosition.top + this.searchBox.offsetHeight + window.pageYOffset + 7 + "px";
+        placeholderStyle.display = ""; /* делаем список саггестов видимым */
+    },
+
+    stylingActiveSuggestion : function () { /* Подсвечиваем саггест, выбранный стрелками */
+        this.activeSuggestion.style.backgroundColor = "#EDEDED";
+    },
+
+    hideSuggestionsPlaceholder : function() { /* Скрываем плейсхолдер для саггестов */
+        this.suggestionsBox.placeholder.style.display = "none";
+    },
+
+    getSuggestions : function(query) { /* Получаем саггесты */
+        this.sendAjax(this.serverUrl + query, this.setSuggestions);
+    },
+
+    setSuggestions : function(suggestions) { /* Сохраняем саггесты */
+        iSuggester.suggestions = suggestions;
+        iSuggester.renderSuggestions(); /* Отрисовываем саггесты */
+    },
+
+    renderSuggestions : function() { /* Отрисовываем саггесты */
+        var selectable = iSuggester.suggestionsBox.selectable;
+        selectable.innerHTML = ""; /* Рефрешим плейсхолдер для саггестов */
+        this.suggestions.forEach(function(suggest) { /* Перебираем саггесты */
+            var suggestionAttrs = {
+                id : suggest.id,
+                style : "background-color: #FAFAFA; cursor: pointer; padding: 10px;"
+            }
+            var suggestion = iSuggester.createDiv(suggestionAttrs); /* Создаем div с саггестом */
+            suggestion.innerHTML = (!suggest.city ? "" : suggest.city + ", ") + (!suggest.address_name ? suggest.name : suggest.address_name + (suggest.address_name == suggest.name ? "" : " (" + suggest.name + ")")); /* Текстовка саггеста */
+            suggestion.onmouseover = function () { suggestion.style.backgroundColor = "#EDEDED"; } /* Изменяем цвет при наведении курсора */
+            suggestion.onmouseout = function () { suggestion.style.backgroundColor = "#FAFAFA"; }
+            suggestion.onclick = function () { iSuggester.setActiveSuggestion(suggestion, true); } /* Подставляем текст саггеста в строку поиска */
+            selectable.appendChild(suggestion);
+        });
+        this.addHintSuggest();
+    },
+
+    addHintSuggest : function() { /* Добавляет саггест-хинт ("Выберите вариант или продолжите ввод") */
+        var hint = this.suggestionsBox.hint;
+        var currentAddress = this.searchBox.value; /* Текст, указанный в строке поиска */
+        var haveSuggestions = (this.suggestions.length > 0 ? true : false); /* Есть саггесты? */
+
+        if (!currentAddress && !haveSuggestions) { /* Строка поиска пуста и нет доступных сагггестов */
+            hint.innerHTML = "Введите адрес в свободной форме";
+        }
+        else if (!currentAddress && haveSuggestions) { /* Строка поиска пуста и есть доступные сагггесты */
+            hint.innerHTML = "Выберите вариант или введите адрес в свободной форме";
+        }
+        else if (currentAddress && !haveSuggestions) { /* Строка поиска не пуста и нет доступных сагггестов */
+            hint.innerHTML = "Продолжите ввод";
+        }
+        else { /* Строка поиска не пуста и есть доступные сагггесты */
+            hint.innerHTML = "Выберите вариант или продолжите ввод";
+        }
+    },
+
+    createDiv : function(attributes) { /* Функция для создания div'a */
+        var div = document.createElement("div");
+        for (attribute in attributes) {
+            div.setAttribute(attribute, attributes[attribute]);
+        }
+        return div;
+    },
+
+    setActiveSuggestion : function(suggestion, injectAddress) { /* Функция, срабатывающая при выборе саггеста / клике в него */
+        if (!suggestion) { /* Проверка для сценария нажимания стрелок */
+            suggestion = this.activeSuggestion;
+        }
+        this.searchBox.value = suggestion.textContent + " "; /* Подставляем текст саггеста в строку поиска */
+        this.searchBox.focus(); /* Ставим курсор в конец строки поиска */
+        if (injectAddress && this.addressFields) { /* Разбираем адрес по филдам */
+            this.sendAjax(this.serverUrl + "/getAddressById?id=" + suggestion.id, this.injectAddress)
+        }
+    },
+
+    handleClickOnSearchBox : function(e) { /* Функция, срабатывающая при клике мышью в строку поиска */
+        e.stopPropagation(); /* Перехватываем скрытие плейсхолдера */
+        if (!this.searchBox.value) { /* Если строка поиска пустая - хотя бы воткнем туда город */
+            this.searchBox.value = this.userCity + ", ";
+        }
+        this.addHintSuggest(); /* Добавляем саггест - хинт */
+        this.stylingSuggestionsPlaceholder(); /* Обновляем положения плейсхолдера с саггестами */
+    },
+
+    handleKeyPress : function(e) { /* Обрабатываем нажания кнопок, когда строка поиска в фокусе */
+
+        e = e || window.event;
+        var keyCode = e.keyCode;
+        var ignoredKeys = [9, 20, 16, 17, 18, 37, 39, 36, 35, 34, 33, 27];
+
+        if (ignoredKeys.indexOf(keyCode) != -1) { /* Игнорируем нажатие в стрелки, шифт, контрол, альт, enter, home, end  и тд*/
+            return false;
+        }
+        else if(keyCode == 38) { /* Нажатие стреки "Вверх" */
+            this.handleUpArrowKeyPress();
+        }
+        else if(keyCode == 40) { /* Нажатие стреки "Вниз" */
+            this.handleDownArrowKeyPress();
+        }
+        else if(keyCode == 13) { /* Нажатие клавиши "Enter" */
+            this.handleEnterKeyPress();
+        }
+        else { /* Вводим буквы/цифры/backspace/delete */
+            this.handleAddressTyping();
+        }
+    },
+
+    handleUpArrowKeyPress: function() { /* Обрабатываем нажания стрелки "Вверх" */
+        if (!this.activeSuggestion) { /* Нет выбранного саггеста */
+            this.activeSuggestion = this.suggestionsBox.selectable.lastChild; /* Берем последний элемент в списке */
+        } else {
+            this.activeSuggestion.style.backgroundColor = "#FAFAFA"; /* Возвращаем дефолтный цвет саггеста */
+            this.activeSuggestion = this.activeSuggestion.previousSibling;
+        }
+        if (!this.activeSuggestion) { /* Проверяем достижение конца списка */
+            this.activeSuggestion = this.suggestionsBox.selectable.lastChild; /* Берем последний элемент в списке */
+        }
+        this.stylingActiveSuggestion(); /* Подсвечиваем саггест, выбранный стрелками */
+        this.setActiveSuggestion();
+    },
+
+    handleDownArrowKeyPress: function() { /* Обрабатываем нажания стрелки "Вниз" */
+        if (!this.activeSuggestion) { /* Нет выбранного саггеста */
+            this.activeSuggestion = this.suggestionsBox.selectable.firstChild; /* Берем первый элемент в списке */
+        } else {
+            this.activeSuggestion.style.backgroundColor = "#FAFAFA"; /* Возвращаем дефолтный цвет саггеста */
+            this.activeSuggestion = this.activeSuggestion.nextSibling;
+        }
+        if (!this.activeSuggestion) { /* Проверяем достижение конца списка */
+            this.activeSuggestion = this.suggestionsBox.selectable.firstChild; /* Берем первый элемент в списке */
+        }
+        this.stylingActiveSuggestion(); /* Подсвечиваем саггест, выбранный стрелками */
+        this.setActiveSuggestion();
+    },
+
+    handleEnterKeyPress: function() { /* Обрабатываем нажания кнопки "Enter" */
+        this.hideSuggestionsPlaceholder();
+        this.setActiveSuggestion(null, true);
+    },
+
+    handleAddressTyping : function() { /* Обрабатываем ввод адреса */
+
+        if (this.suggestionsBox.placeholder.style.display == "none") { /* Делаем список саггестов видим при наборе адреса */
+            this.stylingSuggestionsPlaceholder(); /* Обновляем положения плейсхолдера с саггестами */
+        }
+        var query = this.searchBox.value;
+
+        if (query.length >= 2) { /* Запускаем поиск при вводе от двух символов */
+            if (this.activeSearch != null) {
+                clearTimeout(this.activeSearch);
+            }
+            this.activeSearch = setTimeout(function() { /* немного ждем прежде чем кинуть запрос */
+                iSuggester.getSuggestions("/getAddressByQuery?q=" + encodeURI(query));
+            }, 200);
+        }
+    },
+
+    injectAddress : function(addressData) { /* Разбираем адрес по кусочкам */
+        var objectData = addressData.result.items[0]; /* Детали адреса */
+        var fields = iSuggester.addressFields;
+        var field = function (id) { return document.getElementById(id); };
+        var name, fullAddress, postcode, city, district, street, number, floors, components;
+
+        for (key in fields) { /* Сбрасываем предыдущие значения */
+            var f = field(fields[key]);
+            if (f) { f.value = "" }
         }
 
-        var url = iSuggester.serverUrl + "/suggester/" + requestType + "?";
+        var admDiv = objectData.adm_div; /* Город, Район города.*/
+        var address = objectData.address; /* Индекс, Улица, Номер дома */
+        var floorsCount = objectData.floors; /* Этажи, ... */
 
-        for (param in params) {
-            url += param + "=" + params[param] + "&"; /* TODO для последнего элемента не добавлять символ & */
+        name = objectData.name; /* Наименование */
+
+        if (admDiv) { /* Город, Район города.*/
+            admDiv.forEach(function(item) {
+                if (item.type == "city") { city = item.name; }
+                else if (item.type == "district") { district = item.name; }
+            });
+        }
+        if (address) { /* Индекс, Улица, Номер дома */
+            components = address.components; /* Улица, Номер дома */
+            postcode = address.postcode; /* Индекс */
+        }
+        if (components) { /* Улица, Номер дома */
+            components.forEach(function(item) {
+                if (item.type == "street_number") {
+                    street = item.street; /* Улица */
+                    number = item.number; /* Номер дома */
+                    fullAddress = (city ? city : "") + (street ? ", " + street : "") + (number ? ", " + number : "");
+                }
+            });
+        }
+        if (floorsCount) {
+            floors = floorsCount.ground_count; /* Количество этажей */
         }
 
+        var nameF = field(fields.name),
+            fullAddressF = field(fields.address),
+            postcodeF = field(fields.postcode),
+            cityF = field(fields.city),
+            districtF = field(fields.district),
+            streetF = field(fields.street),
+            numberF = field(fields.number),
+            floorsF = field(fields.floors);
+
+        /* if (__ && __F) { tags.indexOf(__F.tagName) != -1 ? __F.value = __ : __F.innerHTML = __; } */
+
+        if (name && nameF) { nameF.value = name; }
+        if (fullAddress && fullAddressF) { fullAddressF.value = fullAddress; }
+        if (postcode && postcodeF) { postcodeF.value = postcode; }
+        if (city && cityF) { cityF.value = city; }
+        if (district && districtF) { districtF.value = district; }
+        if (street && streetF) { streetF.value = street; }
+        if (number && numberF) { numberF.value = number; }
+        if (floors && floorsF) { floorsF.value = floors; }
+    },
+
+    sendAjax : function(url, callBack) { /* Асинхронный xhr запрос */
         var ajax = new XMLHttpRequest();
         ajax.open("GET", url);
         ajax.send();
 
         ajax.onload = function() {
-            var suggestions = ajax.responseText;
-            if (suggestions.length == 0) { /* чекаем, чтобы ответ был не пустой */
-                iSuggester.suggestionsBox.innerHTML = ""; /* сбрасываем список саггестов при сценарии когда список пустой */
-                return false;
-            }
-            if (typeof(suggestions) == "string") {
-                suggestions = JSON.parse(suggestions);
-            }
-            iSuggester.suggestions = suggestions;
-            if (callback != null && callback != undefined) {
-                callback(); /* лапшекод */
-            }
-        }
-    },
+            var response = ajax.responseText;
 
-    "showGeolocationDataErrors" : function(error) { /* отображаемм почему не удалось получить геолокацию */
-
-        return false; /* TODO если будем юзать - разрешим */
-        switch(error.code) {
-            case error.PERMISSION_DENIED:
-                alert("Вы отклонили запрос геолокации :( (а жаль, все это могло произойти быстрее)");
-                break;
-            case error.POSITION_UNAVAILABLE:
-                alert("Информация о положении недоступна :(");
-                break;
-            case error.TIMEOUT:
-                alert("Время получения геопозиции истекло :(");
-                break;
-            case error.UNKNOWN_ERROR:
-                alert("При получении геолокации произошла неизвестная ошибка :(");
-                break;
-        }
-    },
-
-    "buildSuggestionsPlaceholder" : function() { /* собираем плейсхолдер для саггестов */
-        var searchBoxPosition = this.searchBox.getBoundingClientRect();
-        this.suggestionsBox = document.createElement("div");
-        this.suggestionsBox.id = new Date().getTime();
-        this.suggestionsBox.style.width = this.searchBox.offsetWidth + "px";
-        this.suggestionsBox.style.position = "absolute";
-        this.suggestionsBox.style.left = searchBoxPosition.left + "px";
-        this.suggestionsBox.style.top = searchBoxPosition.top + this.searchBox.offsetHeight + 7 + "px";
-        this.suggestionsBox.style.zIndex = "999";
-        this.suggestionsBox.style.fontFamily = "Arial";
-        this.suggestionsBox.style.fontSize = "14px";
-        this.searchBox.parentNode.insertBefore(this.suggestionsBox, this.searchBox.nextSibling);
-    },
-
-    "renderSuggestions" : function() { /* отрисовываем саггесты */
-
-        if (iSuggester.searchBox.value == "" && !iSuggester.firstClick) {
-            iSuggester.searchBox.value = iSuggester.city + " "; /* выводим название города в инпут */
-            iSuggester.firstClick = true;
-        }
-
-        if (iSuggester.suggestions == null ||  iSuggester.suggestionsBox == null) { /* мы не будем выводить див, если нет доступных саггестов */
-            return false;
-        }
-
-        iSuggester.suggestionsBox.innerHTML = "<div style='background-color: #FAFAFA; color: #808080; padding: 5px 25px; font-size: 12px;'>Выберите вариант или продолжите ввод</div>"; /* сбрасываем список саггестов */
-        iSuggester.suggestionsBox.style.display = ""; /* делаем список саггестов видимым */
-
-        iSuggester.suggestions.forEach(function(suggest) {
-            var suggestion = document.createElement("div");
-            suggestion.id = suggest.id;
-            suggestion.innerHTML = (!suggest.city ? "" : suggest.city + ", ") + (!suggest.address_name ? suggest.name : suggest.address_name + (suggest.address_name == suggest.name ? "" : " (" + suggest.name + ")")); /* Текстовка саггеста */
-            suggestion.setAttribute("style", "background-color: #FAFAFA; cursor: pointer; padding: 10px;");
-
-            suggestion.addEventListener("mouseover", function() { /* ивент при наведении мыши */
-                suggestion.style.backgroundColor = "#EDEDED";
-            });
-            suggestion.addEventListener("mouseout", function() { /* ивент убираем курсор мыши */
-                suggestion.style.backgroundColor = "#FAFAFA";
-            });
-            suggestion.addEventListener("click", function() {
-                iSuggester.setSuggestion(suggestion);
-                iSuggester.searchBox.focus(); /* фокусим поле ввода адреса после выбора саггеста */
-            });
-
-            iSuggester.suggestionsBox.appendChild(suggestion);
-        });
-    },
-
-    "setSuggestion" : function(suggestion) { /* когда выбираем какой-либо саггест */
-        iSuggester.searchBox.value = suggestion.textContent + " ";
-        iSuggester.suggestionsBox.style.display = "none";
-        iSuggester.activeSuggestion = null; /* затычка для выбора стрелочками */
-
-        if (iSuggester.parsedAddress != null) {
-            iSuggester.injectAddress(suggestion.id);
-        }
-    },
-
-    "selectSuggestion" : function(e) { /* двигаем стрелочки */
-
-        if (iSuggester.suggestionsBox.offsetHeight == 0) { /* не даем выбирать из скрытого списка саггестов */
-            return false;
-        }
-
-        e = e || window.event;
-
-        if (iSuggester.activeSuggestion != null) {
-            iSuggester.activeSuggestion.style.backgroundColor = "#FFFFFF"; /* сбрасываем цвет */
-        }
-
-        if (e.keyCode == "38") { /* up arrow */
-            if (iSuggester.activeSuggestion == null) { /* если не выбрано саггестов */
-                iSuggester.activeSuggestion = iSuggester.suggestionsBox.lastChild; /* берем последний элемент в списке */
-            } else {
-                iSuggester.activeSuggestion = iSuggester.activeSuggestion.previousSibling; /* предыдущий элемент в списке */
-            }
-        }
-        else if (e.keyCode == "40") { /* down arrow */
-            if (iSuggester.activeSuggestion == null) { /* если не выбрано саггестов */
-                iSuggester.activeSuggestion = iSuggester.suggestionsBox.firstChild.nextSibling; /* берем первый элемент в списке */
-            } else {
-                iSuggester.activeSuggestion = iSuggester.activeSuggestion.nextSibling; /* следующий элемент в списке */
-            }
-        }
-        else if (e.keyCode == "13") {
-            iSuggester.setSuggestion(iSuggester.activeSuggestion);
-        }
-        else {
-            return false; /* его слегка ебашит когда тыкаешь <- или -> если не заретурнить */
-        }
-
-        if (iSuggester.activeSuggestion.id != "") { /* реально задрали стрелки.. :( кастыль по избежание ховер первой строки */
-            iSuggester.activeSuggestion.style.backgroundColor = "#EDEDED";
-            iSuggester.searchBox.value = iSuggester.activeSuggestion.textContent + " ";
-        }
-    },
-
-    "getCityWithIp" : function() { /* получаем город по IP адресу */
-
-        var ajax = new XMLHttpRequest();
-        ajax.open("GET", "http://api.sypexgeo.net/ypUOZ/json", false); /* http://ip-api.com/json только тут выдает не русское название города D: /81.28.215.86 - ip бердска */
-        ajax.send();
-        var city = ajax.responseText;
-        if (typeof(city) == "string") {
-            city = JSON.parse(city);
-        }
-        iSuggester.city = city.city.name_ru;
-        if (iSuggester.city == null || iSuggester.city == undefined) { /* todo а чё делать, если не удалось получить город по ip? */
-            iSuggester.city = "Новосибирск";
-        }
-    },
-
-    "addressType" : function(e) { /* вводим адресок ручками */
-
-        e = e || window.event;
-
-        var ignoredKeys = [37, 38, 39, 40, 16, 18, 13, 35, 36];
-
-        if (ignoredKeys.indexOf(e.keyCode) != -1) { /* игнорируем тапы в стрелки, шифт, контрол, альт, enter, home, end */
-            return false;
-        }
-
-        var query = {
-            "q" : iSuggester.searchBox.value,
-        };
-
-        if (query.q.length >= 2) { /* ищем от двух символов и больше */
-
-            if (iSuggester.activeSearch != null) {
-                clearTimeout(iSuggester.activeSearch);
+            if (response.length == 0) {
+                response = []; /* Для сценария, когда нет доступных саггестов */
             }
 
-            iSuggester.activeSearch = setTimeout(function() { /* немного ждем прежде чем кинуть запрос */
-                iSuggester.getSuggestions("getAddressByQuery", query, iSuggester.renderSuggestions);
-            }, 100);
-        } else { /* если в поел для поиска < 2 символов, то мы скрываем список саггестов и чистим их */
-            iSuggester.suggestions = null;
-            iSuggester.suggestionsBox.style.display = "none";
-        }
-    },
-
-    "initMap" : function(geolocation) {
-        DG.then(function () {
-            map = DG.map(iSuggester.mapPlaceholder, {
-                center: [54.9800639, 82.89749619999999],
-                zoom: 17
-            });
-
-            map.on('click', function(e) {
-                console.log(e);
-            });
-
-            DG.marker([54.9800639, 82.89749619999999]).addTo(map).bindPopup('Вы здесь?');
-        });
-    },
-
-    "injectAddress" : function(objectId) {
-
-        if (objectId == null || objectId == undefined) {
-            return false;
-        }
-
-        var ajax = new XMLHttpRequest();
-        ajax.open("GET", iSuggester.serverUrl + "/suggester/getAddressById?id=" + objectId);
-        ajax.send();
-
-        ajax.onload = function() {
-            var objectData = ajax.responseText;
-
-            if (typeof(objectData) == "string") {
-                objectData = JSON.parse(objectData);
+            if (typeof(response) == "string") { /* Проверяем контент-тайп ответа */
+                response = JSON.parse(response);
             }
 
-            objectData = objectData.result.items[0];
-
-            var fields = iSuggester.parsedAddress;
-            var admDiv = objectData.adm_div;
-            var city, district;
-
-            admDiv.forEach(function(item) {
-                if (item.type == "city") {
-                    city = item.name;
-                }
-                else if (item.type == "district") {
-                    district = item.name;
-                }
-            });
-
-            var addressComponents = objectData.address ? objectData.address.components[0] : null,
-                street = addressComponents ? addressComponents.street : "-",
-                postcode = addressComponents ? addressComponents.postcode : "-",
-                number = addressComponents ? addressComponents.number : "-",
-                floors = objectData.floors ? objectData.floors.ground_count : "-",
-                geometry = objectData.geometry && objectData.geometry.selection ? objectData.geometry.selection.replace("POINT(", "").replace(")", "") : "-";
-            city = city ? city : "";
-            var address_name = objectData.address_name ? objectData.address_name : "";
-
-
-
-            document.getElementById(fields.name).innerHTML = objectData.name;
-            document.getElementById(fields.address).innerHTML = city + ", " + address_name;
-            document.getElementById(fields.postcode).innerHTML = postcode;
-            document.getElementById(fields.city).innerHTML = city;
-            document.getElementById(fields.district).innerHTML = !district ? "-" : district;
-            document.getElementById(fields.street).innerHTML = street;
-            document.getElementById(fields.number).innerHTML = number;
-            document.getElementById(fields.floors).innerHTML = floors;
-            document.getElementById(fields.geometry).innerHTML = geometry;
-
-            /*
-             name - наименование
-             address - адрес из саггеста (собираем по кускам)
-             postcode - индекс
-             city - город
-             district - район города
-             street - улица
-             number - номер дома
-             floors - количество этажей
-             geometry - Геокоординаты
-             */
+            if (callBack != null && callBack != undefined) {
+                callBack(response); /* Обрабатываем ответ */
+            }
         }
     }
 }
